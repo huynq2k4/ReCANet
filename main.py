@@ -28,6 +28,8 @@ def parse_args():
     args = parser.parse_args()
     return args
 
+#device = tf.device("/device:GPU:0" if tf.config.list_physical_devices("GPU") else "cpu")
+device = tf.device("/device:GPU:0")
 
 args = parse_args()
 dataset = args.dataset
@@ -45,11 +47,10 @@ valid_baskets = pd.read_csv(data_path+dataset+'/valid_baskets.csv')
 print('data read')
 user_test_baskets_df = test_baskets.groupby('user_id')['item_id'].apply(list).reset_index()
 user_test_baskets_dict = dict(zip( user_test_baskets_df['user_id'],user_test_baskets_df['item_id']))
-model = MLPv12(train_baskets, test_baskets,valid_baskets,data_path+dataset+'/' ,3,  5,  args.user_embed_size,args.item_embed_size,64,64,64,64,64,args.history_len, job_id = args.job_id)
-
-
-model.train()
-print('model trained')
+with device:
+    model = MLPv12(train_baskets, device, test_baskets,valid_baskets,data_path+dataset+'/' ,3,  5,  args.user_embed_size,args.item_embed_size,64,64,64,64,64,args.history_len, job_id = args.job_id)
+    model.train()
+    print('model trained')
 
 user_predictions = model.predict()
 final_users = set(model.test_users).intersection(set(list(user_test_baskets_dict.keys())))

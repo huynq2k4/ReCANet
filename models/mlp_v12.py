@@ -18,10 +18,11 @@ from sklearn.metrics import accuracy_score
 
 
 class MLPv12(NBRBase):
-    def __init__(self, train_baskets, test_baskets,valid_baskets,dataset ,basket_count_min=0, min_item_count = 5, user_embed_size = 32,item_embed_size = 128,h1 = 128,h2 = 128,h3 = 128,h4 = 128,h5 = 128,history_len = 40, job_id = 1):
+    def __init__(self, device, train_baskets, test_baskets,valid_baskets,dataset ,basket_count_min=0, min_item_count = 5, user_embed_size = 32,item_embed_size = 128,h1 = 128,h2 = 128,h3 = 128,h4 = 128,h5 = 128,history_len = 40, job_id = 1):
         super().__init__(train_baskets,test_baskets,valid_baskets,basket_count_min)
         self.model_name = dataset+ 'simple_mlpv12'
         self.dataset = dataset
+        self.device = device
         self.all_items = self.train_baskets[['item_id']].drop_duplicates()['item_id'].tolist()
         self.all_users = self.train_baskets[['user_id']].drop_duplicates()['user_id'].tolist()
         self.num_items = len(self.all_items) +1
@@ -190,7 +191,8 @@ class MLPv12(NBRBase):
         return train_items,train_users, train_history,train_history2 ,train_labels
 
     def train(self):
-        train_items, train_users, train_history,train_history2, train_labels = self.create_train_data()
+        with self.device:
+            train_items, train_users, train_history,train_history2, train_labels = self.create_train_data()
         print(train_history.shape)
         print(np.count_nonzero(train_labels))
         model_checkpoint_callback = tf.keras.callbacks.ModelCheckpoint(
@@ -198,12 +200,15 @@ class MLPv12(NBRBase):
             save_weights_only=True,
             save_best_only=False)
 
-        self.model.compile(loss='binary_crossentropy',#'mean_squared_error',
-                      optimizer=Adam(),
-                      metrics=['accuracy'])
+        with self.device:
+            self.model.compile(loss='binary_crossentropy',#'mean_squared_error',
+                        optimizer=Adam(),
+                        metrics=['accuracy'])
         print(self.model.summary())
-        history = self.model.fit([train_items,train_users,train_history,train_history2],train_labels, validation_split = None,
-                                 batch_size=10000, epochs=5,shuffle=True, callbacks=[model_checkpoint_callback])#, class_weight= {0:1, 1:100})
+
+        with self.device:
+            history = self.model.fit([train_items,train_users,train_history,train_history2],train_labels, validation_split = None,
+                                    batch_size=10000, epochs=5,shuffle=True, callbacks=[model_checkpoint_callback])#, class_weight= {0:1, 1:100})
         print("Training completed")
 
     def create_test_data(self,test_data='test'):
@@ -307,8 +312,9 @@ class MLPv12(NBRBase):
         return test_items,test_users, test_history,test_history2, test_labels
 
     def predict(self,epoch = '01'):
-        test_items, test_users, test_history,test_history2, test_labels = self.create_test_data('test')
-        valid_items, valid_users, valid_history,valid_history2 ,valid_labels = self.create_test_data('valid')
+        with self.device:
+            test_items, test_users, test_history,test_history2, test_labels = self.create_test_data('test')
+            valid_items, valid_users, valid_history,valid_history2 ,valid_labels = self.create_test_data('valid')
         user_valid_baskets_df = self.valid_baskets.groupby('user_id')['item_id'].apply(list).reset_index()
         user_valid_baskets_dict = dict(zip( user_valid_baskets_df['user_id'],user_valid_baskets_df['item_id']))
 
@@ -323,6 +329,7 @@ class MLPv12(NBRBase):
             y_pred = self.model.predict([valid_items,valid_users,valid_history,valid_history2],batch_size = 5000)
             predictions = [round(value) for value in y_pred.flatten().tolist()]
             accuracy = accuracy_score(valid_labels, predictions)
+
             print("Accuracy: %.2f%%" % (accuracy * 100.0))
             recall_scores = []
             for user in user_valid_baskets_dict:

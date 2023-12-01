@@ -48,7 +48,7 @@ print('data read')
 user_test_baskets_df = test_baskets.groupby('user_id')['item_id'].apply(list).reset_index()
 user_test_baskets_dict = dict(zip( user_test_baskets_df['user_id'],user_test_baskets_df['item_id']))
 with device:
-    model = MLPv12(train_baskets, device, test_baskets,valid_baskets,data_path+dataset+'/' ,3,  5,  args.user_embed_size,args.item_embed_size,64,64,64,64,64,args.history_len, job_id = args.job_id)
+    model = MLPv12(device, train_baskets, test_baskets,valid_baskets,data_path+dataset+'/' ,3,  5,  args.user_embed_size,args.item_embed_size,64,64,64,64,64,args.history_len, job_id = args.job_id)
     model.train()
     print('model trained')
 

@@ -61,7 +61,7 @@ class MLPv12(NBRBase):
 
         input1 = Input(shape=(1,))
         input2 = Input(shape=(1,))
-        input3 = Input(shape=(self.history_len,))
+        #input3 = Input(shape=(self.history_len,))
         input4 = Input(shape=(self.history_len,))
 
         x1 = Embedding(self.num_items, self.item_embed_size , input_length=1)(input1)
@@ -69,7 +69,7 @@ class MLPv12(NBRBase):
         
         x1 = Flatten()(x1)
         x2 = Flatten()(x2)
-        x3 = input3
+        #x3 = input3
         x4 = input4
 
         x11 = Dense(h1, activation= 'relu')(Concatenate()([x1,x2]))
@@ -85,17 +85,17 @@ class MLPv12(NBRBase):
         x = Dense(h5, activation='relu')(x)
         output = Dense(1, activation='sigmoid')(x)
 
-        self.model = Model([input1,input2,input3,input4], output)
+        self.model = Model([input1,input2,input4], output)
 
     def create_train_data(self):
         print(self.data_path)
         if os.path.isfile(self.model_name +'_' + str(self.history_len) + '_train_users.npy'):
             train_users = np.load(self.model_name +'_' + str(self.history_len) + '_train_users.npy')
             train_items = np.load(self.model_name +'_' + str(self.history_len) + '_train_items.npy')
-            train_history = np.load(self.model_name +'_' + str(self.history_len) + '_train_history.npy')
+            #train_history = np.load(self.model_name +'_' + str(self.history_len) + '_train_history.npy')
             train_history2 = np.load(self.model_name +'_' + str(self.history_len) + '_train_history2.npy')
             train_labels = np.load(self.model_name +'_' + str(self.history_len)+ '_train_labels.npy')
-            return train_items,train_users, train_history,train_history2, train_labels
+            return train_items,train_users,train_history2, train_labels
 
         basket_items = self.train_baskets.groupby(['basket_id'])['item_id'].apply(list).reset_index()
         basket_items_dict = dict(zip(basket_items['basket_id'],basket_items['item_id']))
@@ -109,7 +109,7 @@ class MLPv12(NBRBase):
 
         train_users = []
         train_items = []
-        train_history = []
+        #train_history = []
         train_history2 = []
         train_labels = []
         print('num users:', len(self.test_users))
@@ -150,12 +150,12 @@ class MLPv12(NBRBase):
                         continue
                     while len(input_history) < self.history_len:
                         input_history.insert(0,-1)
-                    real_input_history = []
-                    for x in input_history:
-                        if x == -1:
-                            real_input_history.append(0)
-                        else:
-                            real_input_history.append(i-x)
+                    # real_input_history = []
+                    # for x in input_history:
+                    #     if x == -1:
+                    #         real_input_history.append(0)
+                    #     else:
+                    #         real_input_history.append(i-x)
                     real_input_history2 = []
                     for j,x in enumerate(input_history[:-1]):
                         if x == -1:
@@ -165,35 +165,35 @@ class MLPv12(NBRBase):
                     real_input_history2.append(i-input_history[-1])
                     train_users.append(self.user_id_mapper[user])
                     train_items.append(self.item_id_mapper[item])
-                    train_history.append(real_input_history[-self.history_len:])
+                    #train_history.append(real_input_history[-self.history_len:])
                     train_history2.append(real_input_history2[-self.history_len:])
                     #print(item, basket_items_dict[label_basket])
                     train_labels.append(float(item in basket_items_dict[label_basket]))
 
         train_items = np.array(train_items)
         train_users = np.array(train_users)
-        train_history = np.array(train_history)
+        #train_history = np.array(train_history)
         train_history2 = np.array(train_history2)
         train_labels = np.array(train_labels)
         random_indices = np.random.choice(range(len(train_items)), len(train_items),replace=False)
         train_items = train_items[random_indices]
         train_users = train_users[random_indices]
-        train_history = train_history[random_indices]
+        #train_history = train_history[random_indices]
         train_history2 = train_history2[random_indices]
         train_labels = train_labels[random_indices]        
 
         np.save(self.model_name +'_' + str(self.history_len) + '_train_items.npy',train_items)
         np.save(self.model_name +'_' + str(self.history_len) + '_train_users.npy',train_users)
-        np.save(self.model_name +'_' + str(self.history_len) + '_train_history.npy',train_history)
+        #np.save(self.model_name +'_' + str(self.history_len) + '_train_history.npy',train_history)
         np.save(self.model_name +'_' + str(self.history_len) + '_train_history2.npy',train_history2)
         np.save(self.model_name +'_' + str(self.history_len) + '_train_labels.npy',train_labels)
 
-        return train_items,train_users, train_history,train_history2 ,train_labels
+        return train_items,train_users,train_history2 ,train_labels
 
     def train(self):
         with self.device:
-            train_items, train_users, train_history,train_history2, train_labels = self.create_train_data()
-        print(train_history.shape)
+            train_items, train_users,train_history2, train_labels = self.create_train_data()
+        print(train_history2.shape)
         print(np.count_nonzero(train_labels))
         model_checkpoint_callback = tf.keras.callbacks.ModelCheckpoint(
             filepath=self.data_path+'_weights.{epoch:02d}.hdf5',
@@ -207,7 +207,7 @@ class MLPv12(NBRBase):
         print(self.model.summary())
 
         with self.device:
-            history = self.model.fit([train_items,train_users,train_history,train_history2],train_labels, validation_split = None,
+            history = self.model.fit([train_items,train_users,train_history2],train_labels, validation_split = None,
                                     batch_size=10000, epochs=5,shuffle=True, callbacks=[model_checkpoint_callback])#, class_weight= {0:1, 1:100})
         print("Training completed")
 

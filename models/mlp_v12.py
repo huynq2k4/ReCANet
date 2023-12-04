@@ -215,10 +215,10 @@ class MLPv12(NBRBase):
         if os.path.isfile(self.model_name +'_' + str(self.history_len)+ '_'+test_data+'_users.npy'):
             test_users = np.load(self.model_name +'_' + str(self.history_len) + '_'+test_data+'_users.npy')
             test_items = np.load(self.model_name +'_' + str(self.history_len) + '_'+test_data+'_items.npy')
-            test_history = np.load(self.model_name +'_' + str(self.history_len) + '_'+test_data+'_history.npy')
+            #test_history = np.load(self.model_name +'_' + str(self.history_len) + '_'+test_data+'_history.npy')
             test_history2 = np.load(self.model_name +'_' + str(self.history_len) + '_'+test_data+'_history2.npy')
             test_labels = np.load(self.model_name +'_' + str(self.history_len) + '_'+test_data+'_labels.npy')
-            return test_items,test_users, test_history,test_history2, test_labels
+            return test_items,test_users,test_history2, test_labels
         train_basket_items = self.train_baskets.groupby(['basket_id'])['item_id'].apply(list).reset_index()
         train_basket_items_dict = dict(zip(train_basket_items['basket_id'],train_basket_items['item_id']))
 
@@ -239,7 +239,7 @@ class MLPv12(NBRBase):
 
         test_users = []
         test_items = []
-        test_history = []
+        #test_history = []
         test_history2 = []
         test_labels = []
 
@@ -277,12 +277,12 @@ class MLPv12(NBRBase):
                     continue
                 while len(input_history) < self.history_len:
                     input_history.insert(0,-1)
-                real_input_history = []
-                for x in input_history:
-                    if x == -1:
-                        real_input_history.append(0)
-                    else:
-                        real_input_history.append(len(baskets)-x)
+                # real_input_history = []
+                # for x in input_history:
+                #     if x == -1:
+                #         real_input_history.append(0)
+                #     else:
+                #         real_input_history.append(len(baskets)-x)
 
                 real_input_history2 = []
                 for j,x in enumerate(input_history[:-1]):
@@ -293,28 +293,28 @@ class MLPv12(NBRBase):
                 real_input_history2.append(len(baskets)-input_history[-1])
                 test_users.append(self.user_id_mapper[user])
                 test_items.append(self.item_id_mapper[item])
-                test_history.append(real_input_history)
+                #test_history.append(real_input_history)
                 test_history2.append(real_input_history2)
                 test_labels.append(float(item in label_items))
 
         test_items = np.array(test_items)
         test_users = np.array(test_users)
-        test_history = np.array(test_history)
+        #test_history = np.array(test_history)
         test_history2 = np.array(test_history2)
         test_labels = np.array(test_labels)
 
         np.save(self.model_name +'_' + str(self.history_len) + '_'+test_data+'_items.npy',test_items)
         np.save(self.model_name +'_' + str(self.history_len) + '_'+test_data+'_users.npy',test_users)
-        np.save(self.model_name +'_' + str(self.history_len) + '_'+test_data+'_history.npy',test_history)
+        #np.save(self.model_name +'_' + str(self.history_len) + '_'+test_data+'_history.npy',test_history)
         np.save(self.model_name +'_' + str(self.history_len) + '_'+test_data+'_history2.npy',test_history2)
         np.save(self.model_name +'_' + str(self.history_len) + '_'+test_data+'_labels.npy',test_labels)
 
-        return test_items,test_users, test_history,test_history2, test_labels
+        return test_items,test_users,test_history2, test_labels
 
     def predict(self,epoch = '01'):
         with self.device:
-            test_items, test_users, test_history,test_history2, test_labels = self.create_test_data('test')
-            valid_items, valid_users, valid_history,valid_history2 ,valid_labels = self.create_test_data('valid')
+            test_items, test_users,test_history2, test_labels = self.create_test_data('test')
+            valid_items, valid_users,valid_history2 ,valid_labels = self.create_test_data('valid')
         user_valid_baskets_df = self.valid_baskets.groupby('user_id')['item_id'].apply(list).reset_index()
         user_valid_baskets_dict = dict(zip( user_valid_baskets_df['user_id'],user_valid_baskets_df['item_id']))
 
@@ -326,7 +326,7 @@ class MLPv12(NBRBase):
                 epoch_str = '0'+str(epoch)
 
             self.model.load_weights(self.data_path+'_weights.'+epoch_str+'.hdf5')
-            y_pred = self.model.predict([valid_items,valid_users,valid_history,valid_history2],batch_size = 5000)
+            y_pred = self.model.predict([valid_items,valid_users,valid_history2],batch_size = 5000)
             predictions = [round(value) for value in y_pred.flatten().tolist()]
             accuracy = accuracy_score(valid_labels, predictions)
 
@@ -357,7 +357,7 @@ class MLPv12(NBRBase):
         print('best model:',self.data_path+'_weights.'+epoch_str+'.hdf5')
         print('best recall on valid:',epoch_recall[best_epoch-1])
         self.model.load_weights(self.data_path+'_weights.'+epoch_str+'.hdf5')
-        y_pred = self.model.predict([test_items,test_users,test_history,test_history2],batch_size = 5000)
+        y_pred = self.model.predict([test_items,test_users,test_history2],batch_size = 5000)
         prediction_baskets = {}
         prediction_scores = {}
         for user in self.test_users:
